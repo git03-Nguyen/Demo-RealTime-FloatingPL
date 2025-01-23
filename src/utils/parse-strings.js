@@ -24,4 +24,32 @@ const parseCalcMode = (calcMode) => {
   }
 };
 
-export { parseType, parseCalcMode };
+const parseIsForexByMarket = (isForexByMarket) => {
+  switch (isForexByMarket) {
+    case false:
+      return "No";
+    case true:
+      return "Yes";
+    case null:
+      return "";
+    default:
+      return "";
+  }
+};
+
+const parseFreeMarginMode = (marginMode) => {
+  switch (marginMode) {
+    case 1:
+      return "FreeMarginNotUsePL";
+    case 2:
+      return "FreeMarginUsePL";
+    case 3:
+      return "FreeMarginProfit";
+    case 4:
+      return "FreeMarginLoss";
+    default:
+      return "Undefined";
+  }
+};
+
+export { parseType, parseCalcMode, parseIsForexByMarket, parseFreeMarginMode };
