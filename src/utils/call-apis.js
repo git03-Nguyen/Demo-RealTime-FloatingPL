@@ -6,7 +6,7 @@ const USER_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 
 const getPositionDetails = async (positionId) => {
   try {
-    const response = await fetch(`${API_URL}/TradingPositionInternal/TradingPositions/Open/${positionId}`, {
+    const response = await fetch(`${API_URL}/TradingPositionInternal/TradingPositions/Open/${positionId}/GetDetail`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -29,7 +29,7 @@ const getPositionDetails = async (positionId) => {
 
 const getPositionList = async () => {
   try {
-    const response = await fetch(`${API_URL}/TradingPositionInternal/TradingPositions/Open`, {
+    const response = await fetch(`${API_URL}/TradingPositionInternal/TradingPositions/Open/GetAll`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -52,7 +52,7 @@ const getPositionList = async () => {
 
 const getAccountSummary = async () => {
   try {
-    const response = await fetch(`${API_URL}/TradingAccountManagement/TradingAccounts/${TRADING_ACCOUNT_ID}`, {
+    const response = await fetch(`${API_URL}/TradingAccountInternal/TradingAccounts/${TRADING_ACCOUNT_ID}/GetInformation`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
