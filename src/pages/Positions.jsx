@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getAccountSummary, getPositionList } from "../utils/call-apis";
-import { calculateMargin, normalize } from "../utils/math-utils";
+import { normalize } from "../utils/math-utils";
 import { parseCalcMode, parseFreeMarginMode, parseIsForexByMarket as parseIsForexPLByMarket, parseType } from "../utils/parse-strings";
 
 
@@ -34,19 +34,10 @@ const Positions = ({ connection }) => {
       setDigits(data.digits);
       setCurrency(data.currency);
     };
-
     fetchAccountSummary();
 
     // Fetch the position list
     async function fetchPositionList() {
-      connection.on("1", (symbol, datetime, bid, ask, last = 0, volume = 0) => {
-        if (!last) { last = 0; volume = 0; }
-        setTicks((prevTicks) => ({
-          ...prevTicks,
-          [symbol]: { datetime, bid, ask, last, volume },
-        }));
-      });
-
       const data = await getPositionList();
       let totalProfit = 0;
       let totalLoss = 0;
@@ -60,11 +51,9 @@ const Positions = ({ connection }) => {
         group.positions.forEach((position) => {
           groupSwap += position.swap;
           groupCommission += position.commission;
-          if (position.profit > 0) {
-            groupProfit += position.profit;
-          } else {
-            groupLoss += position.pro
-          }
+          position.profit > 0
+            ? groupProfit += position.profit
+            : groupLoss += position.profit;
         });
         group.profit = groupProfit;
         group.loss = groupLoss;
@@ -93,6 +82,15 @@ const Positions = ({ connection }) => {
 
     fetchPositionList();
 
+    // Subscribe to ticks
+    connection.on("1", (symbol, datetime, bid, ask, last = 0, volume = 0) => {
+      if (!last) { last = 0; volume = 0; }
+      setTicks((prevTicks) => ({
+        ...prevTicks,
+        [symbol]: { datetime, bid, ask, last, volume },
+      }));
+    });
+
     return () => {
       connection.off("1");
       connection.invoke("Unsubscribe", Object.keys(ticks));
@@ -111,17 +109,17 @@ const Positions = ({ connection }) => {
         }
 
         // Check if the position support conversion
-        if (group.positions[0].plCalculation === null) {
+        if (!group.positions[0].plCalculation) {
           group.positions.forEach((position) => {
-            position.profit = "NaN";
+            position.profit = NaN;
           });
-          group.profit = "NaN";
-          group.loss = "NaN";
+          group.profit = NaN;
+          group.loss = NaN;
           return group;
         }
 
         // Update the profit of each position
-        group.positions = group.positions.map((position) => {
+        group.positions.forEach((position) => {
 
           position.closedPrice = position.type === 0 ? ticks[symbolName].bid : ticks[symbolName].ask;
 
@@ -145,7 +143,7 @@ const Positions = ({ connection }) => {
 
           // If there is no conversion symbol (that means profit currency is USD), we don't need to convert
           if (!conversionSymbol) {
-            return position;
+            return;
           }
 
           // Now we need to convert the profit to the deposit currency
@@ -176,7 +174,6 @@ const Positions = ({ connection }) => {
 
           // Complete the rate conversion
           position.profit = normalize(position.profit * position.plCalculation.exchangeRate, digits);
-          return position;
         });
 
         // Update the profit of the group
@@ -189,18 +186,25 @@ const Positions = ({ connection }) => {
             group.loss += position.profit;
           }
         }
+
         return group;
       }));
 
+  }, [ticks]);
+
+  useEffect(() => {
     let totalProfit = 0;
     let totalLoss = 0;
-    for (let group of groups) {
+    groups.forEach((group) => {
+      if (isNaN(group.profit) || isNaN(group.loss)) {
+        return;
+      }
       totalProfit += group.profit;
       totalLoss += group.loss;
-    }
+    });
     setTotalProfit(totalProfit);
     setTotalLoss(totalLoss);
-  }, [ticks]);
+  }, [groups]);
 
   useEffect(() => {
     let equity = balance + totalSwap + totalCommission;
@@ -301,7 +305,7 @@ const Positions = ({ connection }) => {
                     <td style={{ border: "1px solid black", padding: "8px" }}>{position.openPrice}</td>
                     <td style={{ border: "1px solid black", padding: "8px" }}>{position.closedPrice}</td>
                     <td style={{ border: "1px solid black", padding: "8px" }}>
-                      {position.plCalculation ? normalize(position.plCalculation.exchangeRate, digits) : "NaN"}
+                      {position.plCalculation ? position.plCalculation.exchangeRate : NaN}
                       {position.plCalculation?.conversionSymbol ? ` - ${position.plCalculation.conversionSymbol}` : ""}
                     </td>
                     <td style={{ border: "1px solid black", padding: "8px" }}>{parseIsForexPLByMarket(position.plCalculation?.isForexProfitByMarket)}</td>
@@ -329,14 +333,18 @@ const Positions = ({ connection }) => {
         <p>Waiting for positions...</p>
       )}
 
-      <h1>Other Statistics</h1>
+      <h1>Account Information</h1>
+      <p>Currency: {currency}</p>
+      <p>Digits: {digits}</p>
+      <p>Free Margin Mode: {parseFreeMarginMode(freeMarginMode)}</p>
+
+      <h1>Statistics</h1>
       <p>Balance: {balance}</p>
-      <p>Equity: {normalize(equity, digits)}</p>
+      <p>Equity: {equity}</p>
       <p>Leverage: 1:{leverage}</p>
       <p>Used Margin: {usedMargin}</p>
-      <p>Free Margin: {normalize(equity - usedMargin, digits)}</p>
-      <p>Margin Level: {normalize(equity / usedMargin * 100, digits)}%</p>
-      <p>Free Margin Mode: {parseFreeMarginMode(freeMarginMode)}</p>
+      <p>Free Margin: {equity - usedMargin}</p>
+      <p>Margin Level: {normalize(equity / usedMargin * 100, 2)}%</p>
       <p>Total Profit: {totalProfit}</p>
       <p>Total Loss: {totalLoss}</p>
 
