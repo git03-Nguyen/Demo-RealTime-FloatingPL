@@ -8,7 +8,9 @@ const Positions = ({ connection }) => {
   const [ticks, setTicks] = useState({});
 
   const [balance, setBalance] = useState(0);
+  const [credit, setCredit] = useState(0);
   const [equity, setEquity] = useState(0);
+  const [freeMargin, setFreeMargin] = useState(0);
   const [leverage, setLeverage] = useState(0);
   const [usedMargin, setUsedMargin] = useState(0);
   const [freeMarginMode, setFreeMarginMode] = useState(0);
@@ -27,6 +29,7 @@ const Positions = ({ connection }) => {
     async function fetchAccountSummary() {
       const data = await getAccountSummary();
       setBalance(data.balance);
+      setCredit(data.credit);
       setEquity(data.equity);
       setLeverage(data.leverage);
       setUsedMargin(data.margin);
@@ -207,26 +210,28 @@ const Positions = ({ connection }) => {
   }, [groups]);
 
   useEffect(() => {
-    let equity = balance + totalSwap + totalCommission;
+    let equity = balance + credit + totalSwap + totalCommission + totalProfit + totalLoss;
+    let freeMargin = balance + credit - usedMargin;
 
     switch (freeMarginMode) {
       case 1: // FreeMarginNotUsePL
         break;
       case 2: // FreeMarginUsePL
-        equity += totalProfit + totalLoss;
+        freeMargin += totalProfit + totalLoss + totalSwap + totalCommission;
         break;
       case 3: // FreeMarginProfit
-        equity += totalProfit;
+        freeMargin += totalProfit;
         break;
       case 4: // FreeMarginLoss
-        equity += totalLoss;
+        freeMargin += totalLoss;
         break;
       default:
-        equity += totalProfit + totalLoss;
+        freeMargin += totalProfit + totalLoss + totalSwap + totalCommission;
         break;
     }
 
-    setEquity(equity);
+    setEquity(normalize(equity, digits));
+    setFreeMargin(normalize(freeMargin, digits));
   }, [totalProfit, totalLoss]);
 
   return (
@@ -343,7 +348,7 @@ const Positions = ({ connection }) => {
       <p>Equity: {equity}</p>
       <p>Leverage: 1:{leverage}</p>
       <p>Used Margin: {usedMargin}</p>
-      <p>Free Margin: {equity - usedMargin}</p>
+      <p>Free Margin: {freeMargin}</p>
       <p>Margin Level: {normalize(equity / usedMargin * 100, 2)}%</p>
       <p>Total Profit: {totalProfit}</p>
       <p>Total Loss: {totalLoss}</p>
